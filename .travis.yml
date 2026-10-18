@@ -1,9 +1,28 @@
 sudo: false
+# ppc64le dropped: its Travis jobs sit queued indefinitely on the fork and the build never produces a verdict.
 arch:
  - amd64
- - ppc64le
+# focal: Node 24 needs glibc >= 2.28.
+dist: focal
 language: node_js
 node_js:
+  - "24"
   - "10"
   - "12"
   - "14"
+script:
+  # Node >= 18 runs the full suite (npm test). On Node 10/12/14, exclude only the
+  # test files that use language/runtime features those Node versions lack:
+  #   redos.js                          - ES module using node:test (Node >= 18)
+  #   cve.js, ghsa-rgw5-rvv9-x895.js    - numeric separators / global `performance`
+  #   unbound-recursion.js              - global `performance` (Node >= 16)
+  # Every other test file (including ones added later) runs on every leg.
+  - |
+    NODE_MAJOR=$(node -e 'console.log(process.versions.node.split(".")[0])')
+    if [ "$NODE_MAJOR" -ge 18 ]; then
+      npm test
+    else
+      LEGACY_TESTS=$(ls test/*.js | grep -v -E '^test/(redos|cve|ghsa-rgw5-rvv9-x895|unbound-recursion)\.js$')
+      echo "Legacy Node $NODE_MAJOR test files: $LEGACY_TESTS"
+      node node_modules/.bin/tape $LEGACY_TESTS
+    fi

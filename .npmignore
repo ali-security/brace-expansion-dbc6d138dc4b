@@ -4,3 +4,4 @@ test
 example.js
 .npmignore
 .claude
+.github/workflows
